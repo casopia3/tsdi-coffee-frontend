@@ -1,0 +1,557 @@
+import { useEffect, useState, useCallback } from 'react';
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || '/api',
+});
+
+const STATUS_CONFIG = {
+  pending:   { label: 'Pending',   color: '#92400E', bg: '#FEF3C7', next: 'confirmed',  nextLabel: '✅ Confirm Payment' },
+  confirmed: { label: 'Confirmed', color: '#1E40AF', bg: '#DBEAFE', next: 'preparing',  nextLabel: '👨‍🍳 Preparing' },
+  preparing: { label: 'Preparing', color: '#92400E', bg: '#FEF3C7', next: 'ready',      nextLabel: '🔔 Mark Ready' },
+  ready:     { label: 'Ready!',    color: '#065F46', bg: '#D1FAE5', next: 'served',     nextLabel: '✔ Served' },
+  served:    { label: 'Served',    color: '#065F46', bg: '#D1FAE5', next: null,         nextLabel: null },
+};
+
+const EMOJIS = ['☕','🫖','🧊','🍵','🥭','🥑','🧃','🫓','🥚','🌯','🫘','🥐','🍞','🍩','🍰','🍕','🥗','🍜'];
+
+// ── Auth helpers ──────────────────────────────────────────────────────────────
+const ADMIN_PW  = process.env.REACT_APP_ADMIN_PASSWORD  || 'admin123';
+const KITCHEN_PW = process.env.REACT_APP_KITCHEN_PASSWORD || 'kitchen123';
+
+function getRole(pw) {
+  if (pw === ADMIN_PW)   return 'admin';
+  if (pw === KITCHEN_PW) return 'kitchen';
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+export default function Dashboard() {
+  const [password, setPassword]   = useState('');
+  const [role, setRole]           = useState(null); // 'admin' | 'kitchen' | null
+  const [authError, setAuthError] = useState('');
+  const [activeTab, setActiveTab] = useState('orders');
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('dashboard_role');
+    if (saved) setRole(saved);
+  }, []);
+
+  const handleLogin = () => {
+    const r = getRole(password);
+    if (r) {
+      sessionStorage.setItem('dashboard_role', r);
+      sessionStorage.setItem('dashboard_pw', password);
+      setRole(r);
+      setAuthError('');
+    } else {
+      setAuthError('Wrong password. Try again.');
+    }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('dashboard_role');
+    sessionStorage.removeItem('dashboard_pw');
+    setRole(null);
+    setPassword('');
+  };
+
+  // ── Login screen ────────────────────────────────────────────────────────────
+  if (!role) {
+    return (
+      <div style={S.loginWrap}>
+        <div style={S.loginCard}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>☕</div>
+          <div style={S.loginTitle}>Tsdi Coffee</div>
+          <div style={S.loginSub}>Staff Dashboard</div>
+          <input
+            style={S.input}
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          />
+          {authError && <div style={S.authError}>{authError}</div>}
+          <button style={S.loginBtn} onClick={handleLogin}>Sign In</button>
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 16 }}>
+            Kitchen staff use kitchen password · Managers use admin password
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const tabs = role === 'admin'
+    ? [
+        { id: 'orders',  label: '📋 Orders'  },
+        { id: 'menu',    label: '🍽️ Menu'    },
+        { id: 'history', label: '📊 Revenue'  },
+      ]
+    : [
+        { id: 'orders', label: '📋 Orders' },
+      ];
+
+  return (
+    <div style={S.page}>
+      {/* Sidebar */}
+      <div style={S.sidebar}>
+        <div style={S.sidebarLogo}>
+          <div style={{ fontSize: 28 }}>☕</div>
+          <div>
+            <div style={S.sidebarName}>Tsdi Coffee</div>
+            <div style={S.sidebarRole}>{role === 'admin' ? '👑 Admin' : '👨‍🍳 Kitchen'}</div>
+          </div>
+        </div>
+        <nav style={S.nav}>
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              style={{ ...S.navBtn, ...(activeTab === t.id ? S.navBtnActive : {}) }}
+              onClick={() => setActiveTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <button style={S.logoutBtn} onClick={handleLogout}>🚪 Sign Out</button>
+      </div>
+
+      {/* Main content */}
+      <div style={S.main}>
+        {activeTab === 'orders'  && <OrdersView role={role} />}
+        {activeTab === 'menu'    && role === 'admin' && <MenuView />}
+        {activeTab === 'history' && role === 'admin' && <RevenueView />}
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ORDERS VIEW (kitchen + admin)
+// ══════════════════════════════════════════════════════════════════════════════
+function OrdersView({ role }) {
+  const [orders, setOrders]         = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [updating, setUpdating]     = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await api.get('/orders', {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('dashboard_pw')}` },
+      });
+      setOrders(res.data.data);
+      setLastRefresh(new Date());
+    } catch {}
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    fetchOrders();
+    const iv = setInterval(fetchOrders, 8000);
+    return () => clearInterval(iv);
+  }, [fetchOrders]);
+
+  const updateStatus = async (orderId, newStatus) => {
+    setUpdating(orderId);
+    try {
+      await api.patch(`/orders/${orderId}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${sessionStorage.getItem('dashboard_pw')}` } }
+      );
+      fetchOrders();
+    } catch { alert('Failed to update.'); }
+    finally { setUpdating(null); }
+  };
+
+  const grouped = {
+    pending:   orders.filter(o => o.status === 'pending'),
+    confirmed: orders.filter(o => o.status === 'confirmed'),
+    preparing: orders.filter(o => o.status === 'preparing'),
+    ready:     orders.filter(o => o.status === 'ready'),
+  };
+
+  if (loading) return <div style={S.loading}>Loading orders...</div>;
+
+  return (
+    <div>
+      <div style={S.pageHeader}>
+        <div>
+          <div style={S.pageTitle}>Live Orders</div>
+          <div style={S.pageSub}>{orders.length} active · refreshed {lastRefresh.toLocaleTimeString()}</div>
+        </div>
+        <button style={S.refreshBtn} onClick={fetchOrders}>↻ Refresh</button>
+      </div>
+
+      {orders.length === 0 ? (
+        <div style={S.empty}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🍵</div>
+          <div>No active orders right now</div>
+          <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 6 }}>Auto-refreshing every 8 seconds</div>
+        </div>
+      ) : (
+        <div style={S.columns}>
+          {['pending','confirmed','preparing','ready'].map(status => (
+            <div key={status} style={S.column}>
+              <div style={{ ...S.colHeader, background: STATUS_CONFIG[status].bg, color: STATUS_CONFIG[status].color }}>
+                {STATUS_CONFIG[status].label}
+                <span style={S.colCount}>{grouped[status].length}</span>
+              </div>
+              {grouped[status].length === 0
+                ? <div style={S.colEmpty}>No orders</div>
+                : grouped[status].map(order => (
+                  <div key={order.id} style={S.orderCard}>
+                    <div style={S.orderHeader}>
+                      <div style={S.tableNum}>Table {order.table_number}</div>
+                      <div style={S.orderTime}>{new Date(order.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                    </div>
+                    <div style={S.orderId}>#{order.id.slice(0,8).toUpperCase()}</div>
+                    <div style={S.itemsList}>
+                      {order.items.map((item,i) => (
+                        <div key={i} style={S.itemRow}>
+                          <span style={S.itemQty}>{item.quantity}×</span>
+                          <span style={S.itemName}>{item.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={S.orderTotal}>ETB {parseFloat(order.total).toFixed(0)}</div>
+                    {STATUS_CONFIG[status].next && (
+                      <button
+                        style={{ ...S.actionBtn, opacity: updating === order.id ? 0.6 : 1 }}
+                        onClick={() => updateStatus(order.id, STATUS_CONFIG[status].next)}
+                        disabled={updating === order.id}
+                      >
+                        {updating === order.id ? 'Updating...' : STATUS_CONFIG[status].nextLabel}
+                      </button>
+                    )}
+                  </div>
+                ))
+              }
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MENU VIEW (admin only)
+// ══════════════════════════════════════════════════════════════════════════════
+function MenuView() {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [modal, setModal]           = useState(null); // { mode: 'add'|'edit', item? }
+  const [saving, setSaving]         = useState(false);
+  const [form, setForm]             = useState({ name:'', description:'', price:'', image_emoji:'☕', category_id:'', is_available: true });
+
+  const pw = sessionStorage.getItem('dashboard_pw');
+  const headers = { Authorization: `Bearer ${pw}` };
+
+  const fetchMenu = useCallback(async () => {
+    try {
+      const res = await api.get('/menu');
+      setCategories(res.data.data);
+    } catch {}
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchMenu(); }, [fetchMenu]);
+
+  const openAdd = (categoryId) => {
+    setForm({ name:'', description:'', price:'', image_emoji:'☕', category_id: categoryId, is_available: true });
+    setModal({ mode: 'add' });
+  };
+
+  const openEdit = (item, categoryId) => {
+    setForm({ name: item.name, description: item.description, price: item.price, image_emoji: item.image_emoji, category_id: categoryId, is_available: item.is_available });
+    setModal({ mode: 'edit', itemId: item.id });
+  };
+
+  const saveItem = async () => {
+    if (!form.name || !form.price) return alert('Name and price are required');
+    setSaving(true);
+    try {
+      if (modal.mode === 'add') {
+        await api.post('/menu', form, { headers });
+      } else {
+        await api.put(`/menu/${modal.itemId}`, form, { headers });
+      }
+      setModal(null);
+      fetchMenu();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to save item');
+    } finally { setSaving(false); }
+  };
+
+  const toggleAvailability = async (itemId, current) => {
+    try {
+      await api.patch(`/menu/${itemId}/availability`, { is_available: !current }, { headers });
+      fetchMenu();
+    } catch { alert('Failed to update'); }
+  };
+
+  const deleteItem = async (itemId) => {
+    if (!window.confirm('Delete this item?')) return;
+    try {
+      await api.delete(`/menu/${itemId}`, { headers });
+      fetchMenu();
+    } catch { alert('Failed to delete'); }
+  };
+
+  if (loading) return <div style={S.loading}>Loading menu...</div>;
+
+  return (
+    <div>
+      <div style={S.pageHeader}>
+        <div>
+          <div style={S.pageTitle}>Menu Manager</div>
+          <div style={S.pageSub}>Add, edit, or disable menu items</div>
+        </div>
+      </div>
+
+      {categories.map(cat => (
+        <div key={cat.category_id} style={S.menuSection}>
+          <div style={S.menuCatHeader}>
+            <span style={S.menuCatName}>{cat.category}</span>
+            <button style={S.addItemBtn} onClick={() => openAdd(cat.category_id)}>+ Add Item</button>
+          </div>
+          <div style={S.menuGrid}>
+            {cat.items.map(item => (
+              <div key={item.id} style={{ ...S.menuCard, opacity: item.is_available ? 1 : 0.5 }}>
+                <div style={S.menuEmoji}>{item.image_emoji}</div>
+                <div style={S.menuItemName}>{item.name}</div>
+                <div style={S.menuItemDesc}>{item.description}</div>
+                <div style={S.menuItemPrice}>ETB {parseFloat(item.price).toFixed(0)}</div>
+                <div style={S.menuItemActions}>
+                  <button style={S.editBtn} onClick={() => openEdit(item, cat.category_id)}>✏️</button>
+                  <button
+                    style={{ ...S.toggleBtn, background: item.is_available ? '#FEF3C7' : '#D1FAE5' }}
+                    onClick={() => toggleAvailability(item.id, item.is_available)}
+                  >
+                    {item.is_available ? '🔴 Disable' : '🟢 Enable'}
+                  </button>
+                  <button style={S.deleteBtn} onClick={() => deleteItem(item.id)}>🗑️</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Modal */}
+      {modal && (
+        <div style={S.modalOverlay}>
+          <div style={S.modalCard}>
+            <div style={S.modalTitle}>{modal.mode === 'add' ? 'Add New Item' : 'Edit Item'}</div>
+
+            <label style={S.label}>Name *</label>
+            <input style={S.input} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Macchiato" />
+
+            <label style={S.label}>Description</label>
+            <input style={S.input} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="Short description" />
+
+            <label style={S.label}>Price (ETB) *</label>
+            <input style={S.input} type="number" value={form.price} onChange={e => setForm({...form, price: e.target.value})} placeholder="45" />
+
+            <label style={S.label}>Emoji Icon</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {EMOJIS.map(e => (
+                <button
+                  key={e}
+                  style={{ ...S.emojiBtn, background: form.image_emoji === e ? '#3D1F0A' : '#F3F4F6', color: form.image_emoji === e ? '#fff' : '#000' }}
+                  onClick={() => setForm({...form, image_emoji: e})}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button style={{ ...S.loginBtn, flex: 1 }} onClick={saveItem} disabled={saving}>
+                {saving ? 'Saving...' : modal.mode === 'add' ? 'Add Item' : 'Save Changes'}
+              </button>
+              <button style={{ ...S.loginBtn, flex: 1, background: '#6B7280' }} onClick={() => setModal(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REVENUE VIEW (admin only)
+// ══════════════════════════════════════════════════════════════════════════════
+function RevenueView() {
+  const [stats, setStats]   = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const pw = sessionStorage.getItem('dashboard_pw');
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const res = await api.get('/orders/history', {
+          headers: { Authorization: `Bearer ${pw}` }
+        });
+        const all = res.data.data;
+        setOrders(all);
+        const today = new Date().toDateString();
+        const todayOrders = all.filter(o => new Date(o.created_at).toDateString() === today);
+        setStats({
+          todayRevenue: todayOrders.reduce((s,o) => s + parseFloat(o.total), 0),
+          todayOrders:  todayOrders.length,
+          totalRevenue: all.reduce((s,o) => s + parseFloat(o.total), 0),
+          totalOrders:  all.length,
+        });
+      } catch {}
+      finally { setLoading(false); }
+    };
+    fetchAll();
+  }, [pw]);
+
+  if (loading) return <div style={S.loading}>Loading revenue data...</div>;
+
+  return (
+    <div>
+      <div style={S.pageHeader}>
+        <div>
+          <div style={S.pageTitle}>Revenue & Orders</div>
+          <div style={S.pageSub}>Business overview</div>
+        </div>
+      </div>
+
+      {stats && (
+        <div style={S.statsGrid}>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>Today's Revenue</div>
+            <div style={S.statValue}>ETB {stats.todayRevenue.toFixed(0)}</div>
+          </div>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>Today's Orders</div>
+            <div style={S.statValue}>{stats.todayOrders}</div>
+          </div>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>Total Revenue</div>
+            <div style={S.statValue}>ETB {stats.totalRevenue.toFixed(0)}</div>
+          </div>
+          <div style={S.statCard}>
+            <div style={S.statLabel}>Total Orders</div>
+            <div style={S.statValue}>{stats.totalOrders}</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 24 }}>
+        <div style={S.menuCatName}>Recent Orders</div>
+        <table style={S.table}>
+          <thead>
+            <tr>
+              {['Order #','Table','Items','Total','Payment','Status','Time'].map(h => (
+                <th key={h} style={S.th}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {orders.slice(0,50).map(order => (
+              <tr key={order.id} style={S.tr}>
+                <td style={S.td}>#{order.id.slice(0,8).toUpperCase()}</td>
+                <td style={S.td}>Table {order.table_number}</td>
+                <td style={S.td}>{order.items?.length || '-'} items</td>
+                <td style={S.td}>ETB {parseFloat(order.total).toFixed(0)}</td>
+                <td style={S.td}>{order.payment?.method || 'cash'}</td>
+                <td style={S.td}>
+                  <span style={{ ...S.badge, background: STATUS_CONFIG[order.status]?.bg || '#F3F4F6', color: STATUS_CONFIG[order.status]?.color || '#374151' }}>
+                    {order.status}
+                  </span>
+                </td>
+                <td style={S.td}>{new Date(order.created_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// STYLES
+// ══════════════════════════════════════════════════════════════════════════════
+const S = {
+  page:          { display: 'flex', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', background: '#F3F4F6' },
+  sidebar:       { width: 220, background: '#3D1F0A', display: 'flex', flexDirection: 'column', padding: '24px 16px', minHeight: '100vh', position: 'sticky', top: 0 },
+  sidebarLogo:   { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32, paddingBottom: 20, borderBottom: '1px solid rgba(255,255,255,0.1)' },
+  sidebarName:   { color: '#F5ECD7', fontWeight: 700, fontSize: 15 },
+  sidebarRole:   { color: '#C49A6C', fontSize: 12, marginTop: 2 },
+  nav:           { flex: 1, display: 'flex', flexDirection: 'column', gap: 4 },
+  navBtn:        { background: 'none', border: 'none', color: '#C49A6C', padding: '10px 14px', borderRadius: 8, fontSize: 14, cursor: 'pointer', textAlign: 'left', fontWeight: 500 },
+  navBtnActive:  { background: 'rgba(255,255,255,0.15)', color: '#F5ECD7' },
+  logoutBtn:     { background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: '#C49A6C', padding: '8px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer', marginTop: 16 },
+  main:          { flex: 1, padding: 28, overflow: 'auto' },
+  pageHeader:    { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  pageTitle:     { fontSize: 22, fontWeight: 700, color: '#111827' },
+  pageSub:       { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  refreshBtn:    { background: '#3D1F0A', border: 'none', color: '#F5ECD7', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
+  columns:       { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, alignItems: 'start' },
+  column:        { background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' },
+  colHeader:     { padding: '10px 14px', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  colCount:      { background: 'rgba(0,0,0,0.12)', borderRadius: 20, padding: '2px 8px', fontSize: 12 },
+  colEmpty:      { padding: '20px 14px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
+  orderCard:     { margin: 10, border: '1px solid #E5E7EB', borderRadius: 10, padding: 12, background: '#FAFAFA' },
+  orderHeader:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  tableNum:      { fontWeight: 700, fontSize: 15, color: '#3D1F0A' },
+  orderTime:     { fontSize: 11, color: '#9CA3AF' },
+  orderId:       { fontSize: 11, color: '#9CA3AF', marginBottom: 8 },
+  itemsList:     { marginBottom: 8 },
+  itemRow:       { display: 'flex', gap: 6, fontSize: 13, padding: '2px 0', borderBottom: '1px solid #F3F4F6' },
+  itemQty:       { fontWeight: 700, color: '#3D1F0A', minWidth: 24 },
+  itemName:      { color: '#374151' },
+  orderTotal:    { fontSize: 13, fontWeight: 700, color: '#6B3A1F', textAlign: 'right', marginBottom: 10 },
+  actionBtn:     { width: '100%', padding: '8px 0', background: '#3D1F0A', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  loading:       { textAlign: 'center', padding: 60, color: '#6B7280', fontSize: 15 },
+  empty:         { textAlign: 'center', padding: 80, color: '#6B7280', fontSize: 15 },
+  // Menu styles
+  menuSection:   { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  menuCatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  menuCatName:   { fontSize: 16, fontWeight: 700, color: '#3D1F0A' },
+  addItemBtn:    { background: '#3D1F0A', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
+  menuGrid:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12 },
+  menuCard:      { border: '1px solid #E5E7EB', borderRadius: 10, padding: 12, background: '#FAFAFA' },
+  menuEmoji:     { fontSize: 28, marginBottom: 6 },
+  menuItemName:  { fontSize: 14, fontWeight: 600, marginBottom: 2 },
+  menuItemDesc:  { fontSize: 11, color: '#6B7280', marginBottom: 6, lineHeight: 1.4 },
+  menuItemPrice: { fontSize: 14, fontWeight: 700, color: '#6B3A1F', marginBottom: 8 },
+  menuItemActions:{ display: 'flex', gap: 6, flexWrap: 'wrap' },
+  editBtn:       { padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, cursor: 'pointer', background: '#fff', fontSize: 13 },
+  toggleBtn:     { padding: '4px 8px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 500 },
+  deleteBtn:     { padding: '4px 8px', border: 'none', borderRadius: 6, cursor: 'pointer', background: '#FEE2E2', fontSize: 13 },
+  // Modal
+  modalOverlay:  { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modalCard:     { background: '#fff', borderRadius: 16, padding: 28, width: 420, maxHeight: '90vh', overflow: 'auto' },
+  modalTitle:    { fontSize: 18, fontWeight: 700, color: '#3D1F0A', marginBottom: 20 },
+  label:         { display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4 },
+  emojiBtn:      { width: 36, height: 36, border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 18 },
+  // Revenue
+  statsGrid:     { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 },
+  statCard:      { background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  statLabel:     { fontSize: 12, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statValue:     { fontSize: 24, fontWeight: 700, color: '#3D1F0A' },
+  table:         { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  th:            { padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'left', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' },
+  tr:            { borderBottom: '1px solid #F3F4F6' },
+  td:            { padding: '12px 16px', fontSize: 13, color: '#374151' },
+  badge:         { padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600 },
+  // Login
+  loginWrap:     { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6' },
+  loginCard:     { background: '#fff', borderRadius: 16, padding: 36, width: 340, textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' },
+  loginTitle:    { fontSize: 22, fontWeight: 700, color: '#3D1F0A', marginBottom: 4 },
+  loginSub:      { fontSize: 14, color: '#6B7280', marginBottom: 24 },
+  input:         { width: '100%', padding: '11px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, marginBottom: 12, outline: 'none', boxSizing: 'border-box' },
+  authError:     { background: '#FEE2E2', color: '#991B1B', padding: '8px 12px', borderRadius: 8, fontSize: 13, marginBottom: 12 },
+  loginBtn:      { width: '100%', padding: 13, background: '#3D1F0A', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' },
+};
