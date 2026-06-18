@@ -4,6 +4,22 @@ import axios from 'axios';
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const api = axios.create({ baseURL: API_BASE });
 
+const CLOUDINARY_CLOUD = process.env.REACT_APP_CLOUDINARY_CLOUD || 'dr7hrzwpp';
+const CLOUDINARY_PRESET = process.env.REACT_APP_CLOUDINARY_PRESET || 'tsdi-coffee-uploads';
+
+const uploadToCloudinary = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  const data = await res.json();
+  if (data.secure_url) return data.secure_url;
+  throw new Error(data.error?.message || 'Upload failed');
+};
+
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',   color: '#92400E', bg: '#FEF3C7', next: 'confirmed',  nextLabel: '✅ Confirm Payment' },
   confirmed: { label: 'Confirmed', color: '#1E40AF', bg: '#DBEAFE', next: 'preparing',  nextLabel: '👨‍🍳 Preparing' },
@@ -243,7 +259,8 @@ function MenuView() {
   const [loading, setLoading]       = useState(true);
   const [modal, setModal]           = useState(null); // { mode: 'add'|'edit', item? }
   const [saving, setSaving]         = useState(false);
-  const [form, setForm]             = useState({ name:'', description:'', price:'', image_emoji:'☕', category_id:'', is_available: true });
+  const [form, setForm]             = useState({ name:'', description:'', price:'', image_emoji:'☕', image_url:'', category_id:'', is_available: true });
+  const [uploading, setUploading]   = useState(false);
 
   const pw = sessionStorage.getItem('dashboard_pw');
   const headers = { Authorization: `Bearer ${pw}` };
@@ -264,8 +281,22 @@ function MenuView() {
   };
 
   const openEdit = (item, categoryId) => {
-    setForm({ name: item.name, description: item.description, price: item.price, image_emoji: item.image_emoji, category_id: categoryId, is_available: item.is_available });
+    setForm({ name: item.name, description: item.description, price: item.price, image_emoji: item.image_emoji, image_url: item.image_url || '', category_id: categoryId, is_available: item.is_available });
     setModal({ mode: 'edit', itemId: item.id });
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      setForm(f => ({ ...f, image_url: url }));
+    } catch (err) {
+      alert('Image upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const saveItem = async () => {
@@ -366,6 +397,20 @@ function MenuView() {
                 </button>
               ))}
             </div>
+
+            <label style={S.label}>Item Photo</label>
+            {form.image_url && (
+              <img src={form.image_url} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 10, marginBottom: 10 }} />
+            )}
+            <label style={{
+              display: 'block', padding: '10px', border: '1.5px dashed #C49A6C',
+              borderRadius: 10, textAlign: 'center', cursor: 'pointer',
+              fontSize: 13, color: '#6B7280', marginBottom: 12,
+              background: uploading ? '#F9FAFB' : '#fff'
+            }}>
+              {uploading ? '⏳ Uploading...' : form.image_url ? '🔄 Change Photo' : '📷 Upload Photo'}
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} disabled={uploading} />
+            </label>
 
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button style={{ ...S.loginBtn, flex: 1 }} onClick={saveItem} disabled={saving}>

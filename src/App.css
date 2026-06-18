@@ -130,12 +130,13 @@ body {
 }
 .item-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 .item-emoji {
-  height: 88px;
+  height: 110px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 40px;
   background: var(--foam);
+  overflow: hidden;
 }
 .item-info { padding: 10px; }
 .item-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
