@@ -302,11 +302,20 @@ function MenuView() {
   const saveItem = async () => {
     if (!form.name || !form.price) return alert('Name and price are required');
     setSaving(true);
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price: parseFloat(form.price),
+      image_emoji: form.image_emoji,
+      image_url: form.image_url || null,
+      category_id: form.category_id,
+      is_available: form.is_available,
+    };
     try {
       if (modal.mode === 'add') {
-        await axios.post(`${API_BASE}/menu`, form, { headers });
+        await axios.post(`${API_BASE}/menu`, payload, { headers });
       } else {
-        await axios.put(`${API_BASE}/menu/${modal.itemId}`, form, { headers });
+        await axios.put(`${API_BASE}/menu/${modal.itemId}`, payload, { headers });
       }
       setModal(null);
       fetchMenu();
