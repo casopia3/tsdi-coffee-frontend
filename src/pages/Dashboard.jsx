@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
-});
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const api = axios.create({ baseURL: API_BASE });
 
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',   color: '#92400E', bg: '#FEF3C7', next: 'confirmed',  nextLabel: '✅ Confirm Payment' },
@@ -274,9 +273,9 @@ function MenuView() {
     setSaving(true);
     try {
       if (modal.mode === 'add') {
-        await api.post('/menu', form, { headers });
+        await axios.post(`${API_BASE}/menu`, form, { headers });
       } else {
-        await api.put(`/menu/${modal.itemId}`, form, { headers });
+        await axios.put(`${API_BASE}/menu/${modal.itemId}`, form, { headers });
       }
       setModal(null);
       fetchMenu();
@@ -287,7 +286,7 @@ function MenuView() {
 
   const toggleAvailability = async (itemId, current) => {
     try {
-      await api.patch(`/menu/${itemId}/availability`, { is_available: !current }, { headers });
+      await axios.patch(`${API_BASE}/menu/${itemId}/availability`, { is_available: !current }, { headers });
       fetchMenu();
     } catch { alert('Failed to update'); }
   };
@@ -295,7 +294,7 @@ function MenuView() {
   const deleteItem = async (itemId) => {
     if (!window.confirm('Delete this item?')) return;
     try {
-      await api.delete(`/menu/${itemId}`, { headers });
+      await axios.delete(`${API_BASE}/menu/${itemId}`, { headers });
       fetchMenu();
     } catch { alert('Failed to delete'); }
   };
