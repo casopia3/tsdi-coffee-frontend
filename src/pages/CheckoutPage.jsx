@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { createOrder, initiatePayment } from '../api';
+import t from '../i18n';
 
 const PAYMENT_METHODS = [
-  { id: 'chapa',    name: 'Chapa',           desc: 'CBE, Awash, Dashen & more',  iconClass: 'pm-chapa',    icon: 'Chapa' },
-  { id: 'telebirr', name: 'Telebirr',        desc: 'Ethio Telecom mobile wallet', iconClass: 'pm-telebirr', icon: 'Telebirr' },
-  { id: 'card',     name: 'Debit / Credit',  desc: 'Visa & Mastercard',           iconClass: 'pm-card',     icon: '💳' },
-  { id: 'cash',     name: 'Pay at Counter',  desc: 'Cash when served',            iconClass: 'pm-cash',     icon: '💵' },
+  { id: 'chapa',    name: 'Chapa',           desc: t.chapaDesc,    iconClass: 'pm-chapa',    icon: 'Chapa' },
+  { id: 'telebirr', name: 'Telebirr',        desc: t.telebirrDesc, iconClass: 'pm-telebirr', icon: 'Telebirr' },
+  { id: 'card',     name: t.cardName,        desc: t.cardDesc,     iconClass: 'pm-card',     icon: '💳' },
+  { id: 'cash',     name: t.cashName,        desc: t.cashDesc,     iconClass: 'pm-cash',     icon: '💵' },
 ];
 
 export default function CheckoutPage() {
@@ -26,7 +27,6 @@ export default function CheckoutPage() {
     setError('');
 
     try {
-      // 1. Create order
       const orderRes = await createOrder({
         table_number: tableNumber,
         items: cartItems.map(({ item, quantity }) => ({
@@ -36,7 +36,6 @@ export default function CheckoutPage() {
       });
       const order = orderRes.data.data;
 
-      // 2. Initiate payment
       const payRes = await initiatePayment({
         order_id: order.id,
         method: selectedMethod,
@@ -45,15 +44,13 @@ export default function CheckoutPage() {
 
       clearCart();
 
-      // 3. If Chapa returned a checkout URL, redirect there
       if (payData.checkout_url) {
         window.location.href = payData.checkout_url;
       } else {
-        // Cash or fallback — go straight to order status
         navigate(`/order/${order.id}`);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong. Please try again.');
+      setError(err.response?.data?.message || t.errorGeneric);
       setLoading(false);
     }
   };
@@ -67,11 +64,11 @@ export default function CheckoutPage() {
     <div className="page">
       <header className="header">
         <button className="header-back" onClick={() => navigate(`/cart?table=${tableNumber}`)}>‹</button>
-        <span className="header-title">Payment</span>
+        <span className="header-title">{t.payment}</span>
       </header>
 
       <div className="pay-methods">
-        <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 14 }}>Choose how you want to pay</p>
+        <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 14 }}>{t.choosePayment}</p>
 
         {PAYMENT_METHODS.map((method) => (
           <div
@@ -96,11 +93,11 @@ export default function CheckoutPage() {
       </div>
 
       <div className="sticky-footer">
-        <div className="summary-row"><span>Subtotal</span><span>ETB {subtotal.toFixed(0)}</span></div>
-        <div className="summary-row"><span>Service charge (5%)</span><span>ETB {serviceCharge.toFixed(0)}</span></div>
-        <div className="summary-total"><span>Total</span><span>ETB {total.toFixed(0)}</span></div>
+        <div className="summary-row"><span>{t.subtotal}</span><span>ETB {subtotal.toFixed(0)}</span></div>
+        <div className="summary-row"><span>{t.serviceCharge}</span><span>ETB {serviceCharge.toFixed(0)}</span></div>
+        <div className="summary-total"><span>{t.total}</span><span>ETB {total.toFixed(0)}</span></div>
         <button className="btn-primary" onClick={handleConfirm} disabled={loading}>
-          {loading ? 'Processing...' : `Confirm & Pay ETB ${total.toFixed(0)}`}
+          {loading ? t.processing : `${t.confirmAndPay} ETB ${total.toFixed(0)}`}
         </button>
       </div>
     </div>

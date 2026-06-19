@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getMenu } from '../api';
 import { useCart } from '../context/CartContext';
+import t from '../i18n';
 
 export default function MenuPage() {
   const [searchParams] = useSearchParams();
@@ -18,7 +19,7 @@ export default function MenuPage() {
   useEffect(() => {
     getMenu()
       .then((res) => setCategories(res.data.data))
-      .catch(() => setError('Failed to load menu. Is the backend running?'))
+      .catch(() => setError(t.failedMenu))
       .finally(() => setLoading(false));
   }, []);
 
@@ -40,7 +41,7 @@ export default function MenuPage() {
 
   if (loading) return (
     <div className="page">
-      <div className="loading"><div className="spinner" /><span>Loading menu...</span></div>
+      <div className="loading"><div className="spinner" /><span>{t.loadingMenu}</span></div>
     </div>
   );
 
@@ -57,8 +58,8 @@ export default function MenuPage() {
         <div className="header-brand">
           <span className="logo">☕</span>
           <div>
-            <div className="name">Tsdi Coffee</div>
-            <div className="sub">Ethiopian Coffee House</div>
+            <div className="name">{t.brandName}</div>
+            <div className="sub">{t.brandSub}</div>
           </div>
         </div>
         <button className="cart-btn" onClick={() => navigate(`/cart?table=${tableNumber}`)}>
@@ -68,7 +69,7 @@ export default function MenuPage() {
 
       {/* Table tag */}
       <div className="table-tag">
-        📍 Table <strong>{tableNumber}</strong> &nbsp;·&nbsp; QR scan confirmed
+        📍 {t.tableLabel} <strong>{tableNumber}</strong> &nbsp;·&nbsp; {t.qrConfirmed}
       </div>
 
       {/* Category tabs */}
@@ -77,7 +78,7 @@ export default function MenuPage() {
           className={`cat-btn ${activeCategory === 'all' ? 'active' : ''}`}
           onClick={() => setActiveCategory('all')}
         >
-          All
+          {t.all}
         </button>
         {categories.map((c) => (
           <button
@@ -117,7 +118,7 @@ export default function MenuPage() {
                     padding: '3px 8px', borderRadius: 20,
                     letterSpacing: 0.5,
                   }}>
-                    Coming Soon
+                    {t.comingSoon}
                   </div>
                 )}
               </div>
@@ -139,7 +140,7 @@ export default function MenuPage() {
                       fontSize: 11, color: '#9CA3AF',
                       fontStyle: 'italic',
                     }}>
-                      Soon
+                      {t.soon}
                     </span>
                   )}
                 </div>
