@@ -141,10 +141,10 @@ body {
   overflow: hidden;
 }
 .item-info { padding: 10px; }
-.item-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-.item-desc { font-size: 11px; color: var(--gray); line-height: 1.4; margin-bottom: 8px; }
+.item-name { font-size: 30px; font-weight: 600; margin-bottom: 2px; }
+.item-desc { font-size: 20px; color: var(--gray); line-height: 1.4; margin-bottom: 8px; }
 .item-footer { display: flex; align-items: center; justify-content: space-between; }
-.item-price { font-size: 13px; font-weight: 600; color: var(--espresso); }
+.item-price { font-size: 20px; font-weight: 600; color: var(--espresso); }
 .add-btn {
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--coffee); color: #fff;

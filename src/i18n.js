@@ -42,7 +42,7 @@ const t = {
   orderReadyTitle: 'ዝግጁ ነው!',
   orderReadySub: 'ትዕዛዝዎ ዝግጁ ነው። መልካም ምግብ!',
   orderServedTitle: 'ቀርቧል',
-  orderServedSub: 'ጽድ ቡናን ስለጎበኙ እናመሰግናለን!',
+  orderServedSub: 'Tsdi Coffee ቡናን ስለጎበኙ እናመሰግናለን!',
   orderCancelledTitle: 'ተሰርዟል',
   orderCancelledSub: 'ይህ ትዕዛዝ ተሰርዟል።',
   orderNumber: 'የትዕዛዝ ቁጥር',
