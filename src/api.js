@@ -1,7 +1,18 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+});
+
+// Force every request to bypass browser/proxy caching.
+// Fixes "refresh button does nothing" bugs caused by 304 Not Modified responses.
+api.interceptors.request.use((config) => {
+  config.headers['Cache-Control'] = 'no-cache';
+  config.headers['Pragma'] = 'no-cache';
+  if (config.method === 'get') {
+    config.params = { ...config.params, _t: Date.now() };
+  }
+  return config;
 });
 
 export const getMenu = () => api.get('/menu');

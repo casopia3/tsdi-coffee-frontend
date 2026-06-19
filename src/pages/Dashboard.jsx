@@ -4,6 +4,16 @@ import axios from 'axios';
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const api = axios.create({ baseURL: API_BASE });
 
+// Force fresh data on every request — fixes "refresh does nothing" bug
+api.interceptors.request.use((config) => {
+  config.headers['Cache-Control'] = 'no-cache';
+  config.headers['Pragma'] = 'no-cache';
+  if (config.method === 'get') {
+    config.params = { ...config.params, _t: Date.now() };
+  }
+  return config;
+});
+
 const CLOUDINARY_CLOUD = process.env.REACT_APP_CLOUDINARY_CLOUD || 'dr7hrzwpp';
 const CLOUDINARY_PRESET = process.env.REACT_APP_CLOUDINARY_PRESET || 'tsdi-coffee-uploads';
 

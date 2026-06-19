@@ -16,11 +16,17 @@ export default function MenuPage() {
   const [error, setError] = useState('');
   const [flashId, setFlashId] = useState(null);
 
-  useEffect(() => {
+  const fetchMenu = () => {
+    setError('');
     getMenu()
       .then((res) => setCategories(res.data.data))
       .catch(() => setError(t.failedMenu))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchMenu();
+    // eslint-disable-next-line
   }, []);
 
   const allItems = categories.flatMap((c) =>
@@ -62,9 +68,22 @@ export default function MenuPage() {
             <div className="sub">{t.brandSub}</div>
           </div>
         </div>
-        <button className="cart-btn" onClick={() => navigate(`/cart?table=${tableNumber}`)}>
-          🛒 <span className="cart-badge">{totalItems}</span>
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={fetchMenu}
+            style={{
+              background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 20, width: 34, height: 34, color: 'var(--cream)',
+              fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            aria-label="Refresh menu"
+          >
+            ↻
+          </button>
+          <button className="cart-btn" onClick={() => navigate(`/cart?table=${tableNumber}`)}>
+            🛒 <span className="cart-badge">{totalItems}</span>
+          </button>
+        </div>
       </header>
 
       {/* Table tag */}
