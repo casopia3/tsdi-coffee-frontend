@@ -132,7 +132,7 @@ body {
 }
 .item-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 .item-emoji {
-  height: 110px;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
