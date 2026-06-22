@@ -1,8 +1,46 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const api = axios.create({ baseURL: API_BASE });
+
+// ── Sound & browser notification helpers ──────────────────────────────────────
+const playNotificationSound = () => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Play 3 quick beeps
+    [0, 0.25, 0.5].forEach((delay) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.2);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.2);
+    });
+  } catch (e) {
+    console.log('Audio not supported', e);
+  }
+};
+
+const sendBrowserNotification = (orderCount) => {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    new Notification('☕ ትዕዛዝ ደርሷል!', {
+      body: `${orderCount} አዲስ ትዕዛዝ በጠበቃ ላይ ነው`,
+      icon: '/favicon.ico',
+    });
+  }
+};
+
+const requestNotificationPermission = () => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+};
 
 // Bust caches with a timestamp param only — avoids CORS preflight issues
 api.interceptors.request.use((config) => {
@@ -158,19 +196,34 @@ function OrdersView({ role }) {
   const [loading, setLoading]       = useState(true);
   const [updating, setUpdating]     = useState(null);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [newOrderAlert, setNewOrderAlert] = useState(false);
+  const prevPendingCount = useRef(0);
 
   const fetchOrders = useCallback(async () => {
     try {
       const res = await api.get('/orders', {
         headers: { Authorization: `Bearer ${sessionStorage.getItem('dashboard_pw')}` },
       });
-      setOrders(res.data.data);
+      const newOrders = res.data.data;
+      const newPendingCount = newOrders.filter(o => o.status === 'pending').length;
+
+      // If pending orders increased → new order arrived!
+      if (newPendingCount > prevPendingCount.current && prevPendingCount.current >= 0) {
+        playNotificationSound();
+        sendBrowserNotification(newPendingCount);
+        setNewOrderAlert(true);
+        setTimeout(() => setNewOrderAlert(false), 4000);
+      }
+      prevPendingCount.current = newPendingCount;
+
+      setOrders(newOrders);
       setLastRefresh(new Date());
     } catch {}
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
+    requestNotificationPermission();
     fetchOrders();
     const iv = setInterval(fetchOrders, 8000);
     return () => clearInterval(iv);
@@ -199,12 +252,32 @@ function OrdersView({ role }) {
 
   return (
     <div>
+      {/* New order alert banner */}
+      {newOrderAlert && (
+        <div style={{
+          background: '#3D1F0A', color: '#F5ECD7',
+          padding: '12px 20px', fontSize: 15, fontWeight: 600,
+          textAlign: 'center', animation: 'pulse 0.5s ease-in-out',
+        }}>
+          🔔 አዲስ ትዕዛዝ ደርሷል! — New order arrived!
+        </div>
+      )}
+
       <div style={S.pageHeader}>
         <div>
           <div style={S.pageTitle}>Live Orders</div>
           <div style={S.pageSub}>{orders.length} active · refreshed {lastRefresh.toLocaleTimeString()}</div>
         </div>
-        <button style={S.refreshBtn} onClick={fetchOrders}>↻ Refresh</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            style={{ ...S.refreshBtn, background: '#C49A6C', color: '#3D1F0A', fontSize: 12 }}
+            onClick={requestNotificationPermission}
+            title="Enable browser notifications"
+          >
+            🔔 Enable alerts
+          </button>
+          <button style={S.refreshBtn} onClick={fetchOrders}>↻ Refresh</button>
+        </div>
       </div>
 
       {orders.length === 0 ? (
