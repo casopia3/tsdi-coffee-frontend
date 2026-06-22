@@ -55,10 +55,10 @@ export default function ReceiptPage() {
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={S.screenshotBtn} onClick={handleScreenshot}>
-            📸 ስክሪንሾት
+            📸 Screenshot
           </button>
           <button style={S.printBtn} onClick={handlePrint}>
-            🖨 አትም
+            🖨 Print
           </button>
         </div>
       </div>
