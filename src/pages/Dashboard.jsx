@@ -489,9 +489,23 @@ function MenuView() {
             </div>
 
             <label style={S.label}>Item Photo</label>
-            {form.image_url && (
-              <img src={form.image_url} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 10, marginBottom: 10 }} />
-            )}
+           {form.image_url && (
+  <div style={{ position: 'relative', marginBottom: 10 }}>
+    <img src={form.image_url} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 10 }} />
+    <button
+      onClick={() => setForm(f => ({ ...f, image_url: '' }))}
+      style={{
+        position: 'absolute', top: 8, right: 8,
+        background: '#C0392B', color: '#fff',
+        border: 'none', borderRadius: 6,
+        padding: '4px 10px', fontSize: 12,
+        cursor: 'pointer', fontWeight: 600,
+      }}
+    >
+      🗑 Remove Photo
+    </button>
+  </div>
+)}
             <label style={{
               display: 'block', padding: '10px', border: '1.5px dashed #C49A6C',
               borderRadius: 10, textAlign: 'center', cursor: 'pointer',
