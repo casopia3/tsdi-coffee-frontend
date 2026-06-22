@@ -4,7 +4,9 @@ import { QRCodeSVG } from 'qrcode.react';
 const TABLES = ['01','02','03','04','05','06','07','08','09','VIP'];
 
 export default function QRGenerator() {
-  const [baseUrl, setBaseUrl] = useState('http://localhost:3000');
+  const [baseUrl, setBaseUrl] = useState(
+    process.env.REACT_APP_FRONTEND_URL || 'https://tsdi-coffee-frontend.vercel.app'
+  );
   const [selected, setSelected] = useState('01');
   const [password, setPassword] = useState('');
   const [authed, setAuthed] = useState(false);
@@ -57,7 +59,7 @@ export default function QRGenerator() {
           style={{ ...styles.input, flex: 1, marginBottom: 0 }}
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="https://tsdi-coffee.vercel.app"
+          placeholder="https://tsdi-coffee-frontend.vercel.app"
         />
         <span style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 8 }}>
           Change to your Vercel URL when deployed
