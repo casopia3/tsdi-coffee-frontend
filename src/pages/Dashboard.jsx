@@ -4,10 +4,8 @@ import axios from 'axios';
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const api = axios.create({ baseURL: API_BASE });
 
-// Force fresh data on every request — fixes "refresh does nothing" bug
+// Bust caches with a timestamp param only — avoids CORS preflight issues
 api.interceptors.request.use((config) => {
-  config.headers['Cache-Control'] = 'no-cache';
-  config.headers['Pragma'] = 'no-cache';
   if (config.method === 'get') {
     config.params = { ...config.params, _t: Date.now() };
   }

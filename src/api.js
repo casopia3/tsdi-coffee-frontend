@@ -4,11 +4,9 @@ const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
 });
 
-// Force every request to bypass browser/proxy caching.
-// Fixes "refresh button does nothing" bugs caused by 304 Not Modified responses.
+// Bust caches with a timestamp query param only — avoids adding custom
+// headers that trigger CORS preflight failures on some hosts.
 api.interceptors.request.use((config) => {
-  config.headers['Cache-Control'] = 'no-cache';
-  config.headers['Pragma'] = 'no-cache';
   if (config.method === 'get') {
     config.params = { ...config.params, _t: Date.now() };
   }
