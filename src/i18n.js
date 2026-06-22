@@ -7,8 +7,8 @@ const t = {
   all: 'ሁሉም',
   comingSoon: 'በቅርቡ ይመጣል',
   soon: 'በቅርቡ',
-  loadingMenu: 'ምናሌ በመጫን ላይ...',
-  failedMenu: 'ምናሌ መጫን አልተሳካም። አገልጋዩ እየሰራ ነው?',
+  loadingMenu: 'Manu በመጫን ላይ...',
+  failedMenu: 'Manu መጫን አልተሳካም። አገልጋዩ እየሰራ ነው?',
 
   // Cart page
   yourOrder: 'የእርስዎ ትዕዛዝ',

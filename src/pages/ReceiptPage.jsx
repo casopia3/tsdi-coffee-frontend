@@ -51,11 +51,11 @@ export default function ReceiptPage() {
       {/* Action buttons - hidden on print */}
       <div style={S.actions} className="no-print">
         <button style={S.backBtn} onClick={() => navigate('/menu?table=' + order.table_number)}>
-          ← ወደ ምናሌ
+          ← ወደ Manu ተመለስ
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={S.screenshotBtn} onClick={handleScreenshot}>
-            📸 Screenshot
+            📸 ScreenShot
           </button>
           <button style={S.printBtn} onClick={handlePrint}>
             🖨 Print
