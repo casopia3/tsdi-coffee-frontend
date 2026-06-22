@@ -274,7 +274,7 @@ function OrdersView({ role }) {
             onClick={requestNotificationPermission}
             title="Enable browser notifications"
           >
-            🔔 Enable alerts
+            🔔
           </button>
           <button style={S.refreshBtn} onClick={fetchOrders}>↻ Refresh</button>
         </div>
