@@ -144,7 +144,7 @@ export default function ReceiptPage() {
 
         {/* Footer */}
         <div style={S.footer}>
-          <div style={S.thankYou}>አመሰግናለን! 🙏</div>
+          <div style={S.thankYou}>እናመሰግናለን! 🙏</div>
           <div style={S.thankYouSub}>እንደገና ይምጡ</div>
           <div style={{ ...S.divider, margin: '10px 0' }}>- - - - - - - - - - - - - - - - - -</div>
           <div style={S.poweredBy}>Powered by Tsdi Coffee POS</div>
