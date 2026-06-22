@@ -103,6 +103,15 @@ export default function OrderStatusPage() {
           {t.autoRefresh}
         </p>
 
+        {(order.status === 'confirmed' || order.status === 'preparing' || order.status === 'ready' || order.status === 'served') && (
+          <button
+            className="btn-primary"
+            style={{ marginBottom: 10 }}
+            onClick={() => navigate(`/receipt/${orderId}`)}
+          >
+            🧾 ደረሰኝ ይመልከቱ
+          </button>
+        )}
         <button className="btn-outline" onClick={() => navigate('/menu?table=' + order.table_number)}>
           {t.orderMore}
         </button>
