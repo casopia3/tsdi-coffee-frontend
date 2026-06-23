@@ -35,6 +35,7 @@ body{
 
 /* Header */
 .header{
+  padding:18px 24px;
   background:
   linear-gradient(
       135deg,
@@ -162,7 +163,7 @@ body{
 .item-card{
   background:white;
 
-  border-radius:18px;
+  border-radius:20px;
 
   overflow:hidden;
 
@@ -218,9 +219,9 @@ body{
 }
 .item-footer { display: flex; align-items: center; justify-content: space-between; }
 .item-price{
-  font-size:20px;
-  font-weight:800;
-  color:#6B3A1F;
+    font-size:24px;
+    font-weight:800;
+    color:#5A2D0C;
 }
 .add-btn{
   width:42px;
@@ -482,4 +483,33 @@ button{
 
 img{
   display:block;
+}
+.cart-float{
+    position:fixed;
+
+    bottom:25px;
+    right:25px;
+
+    width:65px;
+    height:65px;
+
+    border-radius:50%;
+
+    background:
+    linear-gradient(
+      135deg,
+      #3D1F0A,
+      #6B3A1F
+    );
+
+    color:white;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    font-size:28px;
+
+    box-shadow:
+    0 10px 25px rgba(61,31,10,.35);
 }
