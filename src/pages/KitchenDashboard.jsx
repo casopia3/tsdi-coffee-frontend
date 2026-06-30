@@ -202,7 +202,9 @@ export default function KitchenDashboard() {
 
 const styles = {
   page: { minHeight: '100vh', background: '#F3F4F6', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+
   topbar: { background: '#3D1F0A', color: '#F5ECD7', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  
   topTitle: { fontSize: 18, fontWeight: 700 },
   topSub: { fontSize: 12, color: '#C49A6C', marginTop: 2 },
   refreshBtn: { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#F5ECD7', padding: '7px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
