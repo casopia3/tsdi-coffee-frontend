@@ -440,8 +440,38 @@ function MenuView() {
           <div style={S.menuGrid}>
             {cat.items.map(item => (
               <div key={item.id} style={{ ...S.menuCard, opacity: item.is_available ? 1 : 0.5 }}>
-                <div style={S.menuEmoji}>{item.image_emoji}</div>
-                <div style={S.menuItemName}>{item.name}</div>
+              <div
+  style={{
+    height:180,
+    overflow:'hidden',
+    background:'#F7F5F2'
+  }}
+>
+  {item.image_url ? (
+    <img
+      src={item.image_url}
+      alt={item.name}
+      style={{
+        width:'100%',
+        height:'100%',
+        objectFit:'cover'
+      }}
+    />
+  ) : (
+    <div
+      style={{
+        height:'100%',
+        display:'flex',
+        justifyContent:'center',
+        alignItems:'center',
+        fontSize:70
+      }}
+    >
+      {item.image_emoji}
+    </div>
+  )}
+</div>
+ <div style={S.menuItemName}>{item.name}</div>
                 <div style={S.menuItemDesc}>{item.description}</div>
                 <div style={S.menuItemPrice}>ETB {parseFloat(item.price).toFixed(0)}</div>
                 <div style={S.menuItemActions}>
@@ -699,7 +729,7 @@ logoutBtn: {
   fontSize: 14,
   fontWeight: 600,
   cursor: 'pointer',
-  transition: '.25s',
+  transition: '.25s'
 },
 main:{
   flex:1,
@@ -756,16 +786,73 @@ refreshBtn:{
   menuCatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   menuCatName:   { fontSize: 16, fontWeight: 700, color: '#3D1F0A' },
   addItemBtn:    { background: '#3D1F0A', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
-  menuGrid:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 12 },
-  menuCard:      { border: '1px solid #E5E7EB', borderRadius: 10, padding: 12, background: '#FAFAFA' },
+ menuGrid:{
+  display:'grid',
+  gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',
+  gap:'22px',
+},
+ menuCard:{
+  background:'#FFFFFF',
+  border:'1px solid #ECECEC',
+  borderRadius:'18px',
+  overflow:'hidden',
+  boxShadow:'0 8px 22px rgba(0,0,0,.06)',
+  transition:'all .25s ease',
+  display:'flex',
+  flexDirection:'column',
+},
   menuEmoji:     { fontSize: 28, marginBottom: 6 },
-  menuItemName:  { fontSize: 14, fontWeight: 600, marginBottom: 2 },
-  menuItemDesc:  { fontSize: 11, color: '#6B7280', marginBottom: 6, lineHeight: 1.4 },
-  menuItemPrice: { fontSize: 14, fontWeight: 700, color: '#6B3A1F', marginBottom: 8 },
-  menuItemActions:{ display: 'flex', gap: 6, flexWrap: 'wrap' },
-  editBtn:       { padding: '4px 8px', border: '1px solid #E5E7EB', borderRadius: 6, cursor: 'pointer', background: '#fff', fontSize: 13 },
-  toggleBtn:     { padding: '4px 8px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 500 },
-  deleteBtn:     { padding: '4px 8px', border: 'none', borderRadius: 6, cursor: 'pointer', background: '#FEE2E2', fontSize: 13 },
+menuItemName:{
+    fontSize:18,
+    fontWeight:700,
+    color:'#2A1408',
+    marginTop:14,
+    marginBottom:6,
+    padding:'0 16px'
+},
+menuItemDesc:{
+    fontSize:13,
+    color:'#6B7280',
+    lineHeight:1.6,
+    minHeight:42,
+    padding:'0 16px'
+},
+ menuItemPrice:{
+    fontSize:22,
+    fontWeight:800,
+    color:'#3D1F0A',
+    padding:'12px 16px',
+},
+menuItemActions:{
+    display:'flex',
+    gap:10,
+    padding:'0 16px 18px',
+},
+editBtn:{
+    flex:1,
+    background:'#FFFFFF',
+    border:'1px solid #DDD',
+    borderRadius:10,
+    padding:'10px',
+    cursor:'pointer',
+    fontWeight:600,
+},
+toggleBtn:{
+    flex:2,
+    border:'none',
+    borderRadius:10,
+    padding:'10px',
+    cursor:'pointer',
+    fontWeight:700,
+},
+deleteBtn:{
+    width:46,
+    background:'#FFE7E7',
+    border:'none',
+    borderRadius:10,
+    cursor:'pointer',
+    fontSize:18,
+},
   // Modal
   modalOverlay:  { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modalCard:     { background: '#fff', borderRadius: 16, padding: 28, width: 420, maxHeight: '90vh', overflow: 'auto' },
