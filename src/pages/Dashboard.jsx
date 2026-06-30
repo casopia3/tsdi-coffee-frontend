@@ -8,7 +8,6 @@ const api = axios.create({ baseURL: API_BASE });
 const playNotificationSound = () => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // Play 3 quick beeps
     [0, 0.25, 0.5].forEach((delay) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -87,11 +86,133 @@ function getRole(pw) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Global responsive CSS — handles all screen sizes via media queries since
+// inline styles cannot respond to viewport width on their own.
+// ══════════════════════════════════════════════════════════════════════════════
+const ResponsiveStyles = () => (
+  <style>{`
+    .dash-page {
+      display: flex;
+      min-height: 100vh;
+      font-family: "Inter","Segoe UI",sans-serif;
+      background: #F7F6F3;
+    }
+    .dash-sidebar {
+      width: 250px;
+      background: linear-gradient(180deg,#2A1408 0%, #3D1F0A 100%);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 18px;
+      min-height: 100vh;
+      position: sticky;
+      top: 0;
+      box-shadow: 6px 0 20px rgba(0,0,0,.15);
+      flex-shrink: 0;
+      z-index: 50;
+    }
+    .dash-main {
+      flex: 1;
+      padding: 32px;
+      overflow: auto;
+      background: #F7F5F2;
+      min-width: 0;
+    }
+    .dash-columns {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(280px, 1fr));
+      gap: 24px;
+      align-items: flex-start;
+    }
+    .dash-menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 22px;
+    }
+    .dash-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .dash-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .dash-mobile-topbar { display: none; }
+    .dash-mobile-overlay { display: none; }
+
+    /* ── Tablet (≤1024px): sidebar gets slimmer, 2-col grids ── */
+    @media (max-width: 1024px) {
+      .dash-sidebar { width: 200px; padding: 20px 14px; }
+      .dash-main { padding: 22px; }
+      .dash-columns { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
+      .dash-menu-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+      .dash-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ── Mobile (≤768px): sidebar becomes a slide-in drawer ── */
+    @media (max-width: 768px) {
+      .dash-page { flex-direction: column; }
+      .dash-mobile-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #3D1F0A;
+        padding: 14px 18px;
+        position: sticky;
+        top: 0;
+        z-index: 60;
+        box-shadow: 0 4px 12px rgba(0,0,0,.15);
+      }
+      .dash-sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        height: 100vh;
+        width: 240px;
+        transition: left .25s ease;
+        z-index: 100;
+      }
+      .dash-sidebar.open { left: 0; }
+      .dash-mobile-overlay.open {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.45);
+        z-index: 90;
+      }
+      .dash-main { padding: 16px; }
+      .dash-columns { grid-template-columns: 1fr; gap: 16px; }
+      .dash-menu-grid { grid-template-columns: 1fr; }
+      .dash-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .dash-page-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px;
+      }
+      .dash-page-header > div:last-child {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+      }
+      .dash-modal-card { width: 92vw !important; padding: 20px !important; }
+    }
+
+    @media (max-width: 420px) {
+      .dash-stats-grid { grid-template-columns: 1fr; }
+      .dash-page-title { font-size: 22px !important; }
+    }
+  `}</style>
+);
+
+// ══════════════════════════════════════════════════════════════════════════════
 export default function Dashboard() {
   const [password, setPassword]   = useState('');
   const [role, setRole]           = useState(null); // 'admin' | 'kitchen' | null
   const [authError, setAuthError] = useState('');
   const [activeTab, setActiveTab] = useState('orders');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const saved = sessionStorage.getItem('dashboard_role');
@@ -120,26 +241,29 @@ export default function Dashboard() {
   // ── Login screen ────────────────────────────────────────────────────────────
   if (!role) {
     return (
-      <div style={S.loginWrap}>
-        <div style={S.loginCard}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>☕</div>
-          <div style={S.loginTitle}>Tsdi Coffee</div>
-          <div style={S.loginSub}>Staff Dashboard</div>
-          <input
-            style={S.input}
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleLogin()}
-          />
-          {authError && <div style={S.authError}>{authError}</div>}
-          <button style={S.loginBtn} onClick={handleLogin}>Sign In</button>
-          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 16 }}>
-            Kitchen staff use kitchen password · Managers use admin password
+      <>
+        <ResponsiveStyles />
+        <div style={S.loginWrap}>
+          <div style={S.loginCard}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>☕</div>
+            <div style={S.loginTitle}>Tsdi Coffee</div>
+            <div style={S.loginSub}>Staff Dashboard</div>
+            <input
+              style={S.input}
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            />
+            {authError && <div style={S.authError}>{authError}</div>}
+            <button style={S.loginBtn} onClick={handleLogin}>Sign In</button>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 16 }}>
+              Kitchen staff use kitchen password · Managers use admin password
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -153,38 +277,68 @@ export default function Dashboard() {
         { id: 'orders', label: '📋 Orders' },
       ];
 
-  return (
-    <div style={S.page}>
-      {/* Sidebar */}
-      <div style={S.sidebar}>
-        <div style={S.sidebarLogo}>
-          <div style={{ fontSize: 28 }}>☕</div>
-          <div>
-            <div style={S.sidebarName}>Tsdi Coffee</div>
-            <div style={S.sidebarRole}>{role === 'admin' ? '👑 Admin' : '👨‍🍳 Kitchen'}</div>
-          </div>
-        </div>
-        <nav style={S.nav}>
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              style={{ ...S.navBtn, ...(activeTab === t.id ? S.navBtnActive : {}) }}
-              onClick={() => setActiveTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
-        <button style={S.logoutBtn} onClick={handleLogout}>🚪 Sign Out</button>
-      </div>
+  const goToTab = (id) => {
+    setActiveTab(id);
+    setSidebarOpen(false);
+  };
 
-      {/* Main content */}
-      <div style={S.main}>
-        {activeTab === 'orders'  && <OrdersView role={role} />}
-        {activeTab === 'menu'    && role === 'admin' && <MenuView />}
-        {activeTab === 'history' && role === 'admin' && <RevenueView />}
+  return (
+    <>
+      <ResponsiveStyles />
+      <div className="dash-page">
+
+        {/* Mobile top bar — hamburger menu, only visible ≤768px */}
+        <div className="dash-mobile-topbar">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{ background: 'none', border: 'none', color: '#F5ECD7', fontSize: 24, cursor: 'pointer', padding: 4 }}
+            aria-label="Open menu"
+          >
+            ☰
+          </button>
+          <div style={{ color: '#F5ECD7', fontWeight: 700, fontSize: 16 }}>
+            ☕ Tsdi Coffee — {role === 'admin' ? 'Admin' : 'Kitchen'}
+          </div>
+          <div style={{ width: 32 }} />
+        </div>
+
+        {/* Mobile overlay backdrop */}
+        <div
+          className={`dash-mobile-overlay ${sidebarOpen ? 'open' : ''}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+
+        {/* Sidebar */}
+        <div className={`dash-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div style={S.sidebarLogo}>
+            <div style={{ fontSize: 28 }}>☕</div>
+            <div>
+              <div style={S.sidebarName}>Tsdi Coffee</div>
+              <div style={S.sidebarRole}>{role === 'admin' ? '👑 Admin' : '👨‍🍳 Kitchen'}</div>
+            </div>
+          </div>
+          <nav style={S.nav}>
+            {tabs.map(t => (
+              <button
+                key={t.id}
+                style={{ ...S.navBtn, ...(activeTab === t.id ? S.navBtnActive : {}) }}
+                onClick={() => goToTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+          <button style={S.logoutBtn} onClick={handleLogout}>🚪 Sign Out</button>
+        </div>
+
+        {/* Main content */}
+        <div className="dash-main">
+          {activeTab === 'orders'  && <OrdersView role={role} />}
+          {activeTab === 'menu'    && role === 'admin' && <MenuView />}
+          {activeTab === 'history' && role === 'admin' && <RevenueView />}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -207,7 +361,6 @@ function OrdersView({ role }) {
       const newOrders = res.data.data;
       const newPendingCount = newOrders.filter(o => o.status === 'pending').length;
 
-      // If pending orders increased → new order arrived!
       if (newPendingCount > prevPendingCount.current && prevPendingCount.current >= 0) {
         playNotificationSound();
         sendBrowserNotification(newPendingCount);
@@ -252,31 +405,30 @@ function OrdersView({ role }) {
 
   return (
     <div>
-      {/* New order alert banner */}
       {newOrderAlert && (
         <div style={{
           background: '#3D1F0A', color: '#F5ECD7',
           padding: '12px 20px', fontSize: 15, fontWeight: 600,
-          textAlign: 'center', animation: 'pulse 0.5s ease-in-out',
+          textAlign: 'center', borderRadius: 10, marginBottom: 16,
         }}>
           🔔 አዲስ ትዕዛዝ ደርሷል! — New order arrived!
         </div>
       )}
 
-      <div style={S.pageHeader}>
+      <div className="dash-page-header" style={S.pageHeader}>
         <div>
-          <div style={S.pageTitle}>Live Orders</div>
+          <div className="dash-page-title" style={S.pageTitle}>Live Orders</div>
           <div style={S.pageSub}>{orders.length} active · refreshed {lastRefresh.toLocaleTimeString()}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            style={{ ...S.refreshBtn, background: '#C49A6C', color: '#3D1F0A', fontSize: 12 }}
+            style={{ ...S.refreshBtn, background: '#C49A6C', color: '#3D1F0A', fontSize: 12, flex: '0 0 auto' }}
             onClick={requestNotificationPermission}
             title="Enable browser notifications"
           >
             🔔
           </button>
-          <button style={S.refreshBtn} onClick={fetchOrders}>↻ Refresh</button>
+          <button style={{ ...S.refreshBtn, flex: '1 1 auto' }} onClick={fetchOrders}>↻ Refresh</button>
         </div>
       </div>
 
@@ -287,7 +439,7 @@ function OrdersView({ role }) {
           <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 6 }}>Auto-refreshing every 8 seconds</div>
         </div>
       ) : (
-        <div style={S.columns}>
+        <div className="dash-columns">
           {['pending','confirmed','preparing','ready'].map(status => (
             <div key={status} style={S.column}>
               <div style={{ ...S.colHeader, background: STATUS_CONFIG[status].bg, color: STATUS_CONFIG[status].color }}>
@@ -338,7 +490,7 @@ function OrdersView({ role }) {
 function MenuView() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [modal, setModal]           = useState(null); // { mode: 'add'|'edit', item? }
+  const [modal, setModal]           = useState(null);
   const [saving, setSaving]         = useState(false);
   const [form, setForm]             = useState({ name:'', description:'', price:'', image_emoji:'☕', image_url:'', category_id:'', is_available: true });
   const [uploading, setUploading]   = useState(false);
@@ -357,7 +509,7 @@ function MenuView() {
   useEffect(() => { fetchMenu(); }, [fetchMenu]);
 
   const openAdd = (categoryId) => {
-    setForm({ name:'', description:'', price:'', image_emoji:'☕', category_id: categoryId, is_available: true });
+    setForm({ name:'', description:'', price:'', image_emoji:'☕', image_url:'', category_id: categoryId, is_available: true });
     setModal({ mode: 'add' });
   };
 
@@ -424,9 +576,9 @@ function MenuView() {
 
   return (
     <div>
-      <div style={S.pageHeader}>
+      <div className="dash-page-header" style={S.pageHeader}>
         <div>
-          <div style={S.pageTitle}>Menu Manager</div>
+          <div className="dash-page-title" style={S.pageTitle}>Menu Manager</div>
           <div style={S.pageSub}>Add, edit, or disable menu items</div>
         </div>
       </div>
@@ -437,41 +589,23 @@ function MenuView() {
             <span style={S.menuCatName}>{cat.category}</span>
             <button style={S.addItemBtn} onClick={() => openAdd(cat.category_id)}>+ Add Item</button>
           </div>
-          <div style={S.menuGrid}>
+          <div className="dash-menu-grid">
             {cat.items.map(item => (
               <div key={item.id} style={{ ...S.menuCard, opacity: item.is_available ? 1 : 0.5 }}>
-              <div
-  style={{
-    height:180,
-    overflow:'hidden',
-    background:'#F7F5F2'
-  }}
->
-  {item.image_url ? (
-    <img
-      src={item.image_url}
-      alt={item.name}
-      style={{
-        width:'100%',
-        height:'100%',
-        objectFit:'cover'
-      }}
-    />
-  ) : (
-    <div
-      style={{
-        height:'100%',
-        display:'flex',
-        justifyContent:'center',
-        alignItems:'center',
-        fontSize:70
-      }}
-    >
-      {item.image_emoji}
-    </div>
-  )}
-</div>
- <div style={S.menuItemName}>{item.name}</div>
+                <div style={{ height: 180, overflow: 'hidden', background: '#F7F5F2' }}>
+                  {item.image_url ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: 70 }}>
+                      {item.image_emoji}
+                    </div>
+                  )}
+                </div>
+                <div style={S.menuItemName}>{item.name}</div>
                 <div style={S.menuItemDesc}>{item.description}</div>
                 <div style={S.menuItemPrice}>ETB {parseFloat(item.price).toFixed(0)}</div>
                 <div style={S.menuItemActions}>
@@ -493,7 +627,7 @@ function MenuView() {
       {/* Modal */}
       {modal && (
         <div style={S.modalOverlay}>
-          <div style={S.modalCard}>
+          <div className="dash-modal-card" style={S.modalCard}>
             <div style={S.modalTitle}>{modal.mode === 'add' ? 'Add New Item' : 'Edit Item'}</div>
 
             <label style={S.label}>Name *</label>
@@ -519,23 +653,23 @@ function MenuView() {
             </div>
 
             <label style={S.label}>Item Photo</label>
-           {form.image_url && (
-  <div style={{ position: 'relative', marginBottom: 10 }}>
-    <img src={form.image_url} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 10 }} />
-    <button
-      onClick={() => setForm(f => ({ ...f, image_url: '' }))}
-      style={{
-        position: 'absolute', top: 8, right: 8,
-        background: '#C0392B', color: '#fff',
-        border: 'none', borderRadius: 6,
-        padding: '4px 10px', fontSize: 12,
-        cursor: 'pointer', fontWeight: 600,
-      }}
-    >
-      🗑 Remove Photo
-    </button>
-  </div>
-)}
+            {form.image_url && (
+              <div style={{ position: 'relative', marginBottom: 10 }}>
+                <img src={form.image_url} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 10 }} />
+                <button
+                  onClick={() => setForm(f => ({ ...f, image_url: '' }))}
+                  style={{
+                    position: 'absolute', top: 8, right: 8,
+                    background: '#C0392B', color: '#fff',
+                    border: 'none', borderRadius: 6,
+                    padding: '4px 10px', fontSize: 12,
+                    cursor: 'pointer', fontWeight: 600,
+                  }}
+                >
+                  🗑 Remove Photo
+                </button>
+              </div>
+            )}
             <label style={{
               display: 'block', padding: '10px', border: '1.5px dashed #C49A6C',
               borderRadius: 10, textAlign: 'center', cursor: 'pointer',
@@ -596,15 +730,15 @@ function RevenueView() {
 
   return (
     <div>
-      <div style={S.pageHeader}>
+      <div className="dash-page-header" style={S.pageHeader}>
         <div>
-          <div style={S.pageTitle}>Revenue & Orders</div>
+          <div className="dash-page-title" style={S.pageTitle}>Revenue & Orders</div>
           <div style={S.pageSub}>Business overview</div>
         </div>
       </div>
 
       {stats && (
-        <div style={S.statsGrid}>
+        <div className="dash-stats-grid">
           <div style={S.statCard}>
             <div style={S.statLabel}>Today's Revenue</div>
             <div style={S.statValue}>ETB {stats.todayRevenue.toFixed(0)}</div>
@@ -626,332 +760,296 @@ function RevenueView() {
 
       <div style={{ marginTop: 24 }}>
         <div style={S.menuCatName}>Recent Orders</div>
-        <table style={S.table}>
-          <thead>
-            <tr>
-              {['Order #','Table','Items','Total','Payment','Status','Time'].map(h => (
-                <th key={h} style={S.th}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {orders.slice(0,50).map(order => (
-              <tr key={order.id} style={S.tr}>
-                <td style={S.td}>#{order.id.slice(0,8).toUpperCase()}</td>
-                <td style={S.td}>Table {order.table_number}</td>
-                <td style={S.td}>{order.items?.length || '-'} items</td>
-                <td style={S.td}>ETB {parseFloat(order.total).toFixed(0)}</td>
-                <td style={S.td}>{order.payment?.method || 'cash'}</td>
-                <td style={S.td}>
-                  <span style={{ ...S.badge, background: STATUS_CONFIG[order.status]?.bg || '#F3F4F6', color: STATUS_CONFIG[order.status]?.color || '#374151' }}>
-                    {order.status}
-                  </span>
-                </td>
-                <td style={S.td}>{new Date(order.created_at).toLocaleString()}</td>
+        <div className="dash-table-wrap">
+          <table style={S.table}>
+            <thead>
+              <tr>
+                {['Order #','Table','Items','Total','Payment','Status','Time'].map(h => (
+                  <th key={h} style={S.th}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {orders.slice(0,50).map(order => (
+                <tr key={order.id} style={S.tr}>
+                  <td style={S.td}>#{order.id.slice(0,8).toUpperCase()}</td>
+                  <td style={S.td}>Table {order.table_number}</td>
+                  <td style={S.td}>{order.items?.length || '-'} items</td>
+                  <td style={S.td}>ETB {parseFloat(order.total).toFixed(0)}</td>
+                  <td style={S.td}>{order.payment?.method || 'cash'}</td>
+                  <td style={S.td}>
+                    <span style={{ ...S.badge, background: STATUS_CONFIG[order.status]?.bg || '#F3F4F6', color: STATUS_CONFIG[order.status]?.color || '#374151' }}>
+                      {order.status}
+                    </span>
+                  </td>
+                  <td style={S.td}>{new Date(order.created_at).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// STYLES
+// STYLES (kept as JS object — layout-critical rules moved to CSS classes above)
 // ══════════════════════════════════════════════════════════════════════════════
 const S = {
-page: {
-  display: 'flex',
-  minHeight: '100vh',
-  fontFamily: '"Inter","Segoe UI",sans-serif',
-  background: '#F7F6F3',
-},
-sidebar: {
-  width: 250,
-  background: 'linear-gradient(180deg,#2A1408 0%, #3D1F0A 100%)',
-  display: 'flex',
-  flexDirection: 'column',
-  padding: '24px 18px',
-  minHeight: '100vh',
-  position: 'sticky',
-  top: 0,
-  boxShadow: '6px 0 20px rgba(0,0,0,.15)',
-},
-sidebarLogo: {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 14,
-  marginBottom: 34,
-  paddingBottom: 22,
-  borderBottom: '1px solid rgba(255,255,255,.08)',
-},
-sidebarName: {
-  color: '#FFF8F0',
-  fontWeight: 700,
-  fontSize: 20,
-  letterSpacing: '.3px',
-},
-sidebarRole: {
-  color: '#D8B48A',
-  fontSize: 13,
-  marginTop: 4,
-},
-nav:{
-  flex:1,
-  display:'flex',
-  flexDirection:'column',
-  gap:10,
-},
-navBtn: {
-  background: 'transparent',
-  border: 'none',
-  color: '#D8B48A',
-  padding: '13px 16px',
-  borderRadius: 12,
-  fontSize: 15,
-  cursor: 'pointer',
-  textAlign: 'left',
-  fontWeight: 600,
-  transition: 'all .25s ease',
-},
-navBtnActive: {
-  background: '#5B3316',
-  color: '#FFF',
-  boxShadow: '0 6px 16px rgba(0,0,0,.18)',
-},
-logoutBtn: {
-  background: '#5B3316',
-  color: '#fff',
-  border: 'none',
-  padding: '12px',
-  borderRadius: 12,
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-  transition: '.25s'
-},
-main:{
-  flex:1,
-  padding:'32px',
-  overflow:'auto',
-  background:'#F7F5F2'
-},
- pageHeader:{
-  display:'flex',
-  justifyContent:'space-between',
-  alignItems:'center',
-  marginBottom:30,
-},
-pageTitle:{
-  fontSize:30,
-  fontWeight:800,
-  color:'#2A1408',
-},
-pageSub:{
-  marginTop:6,
-  fontSize:14,
-  color:'#7A7A7A',
-},
-refreshBtn:{
-  background:'#3D1F0A',
-  color:'#fff',
-  border:'none',
-  padding:'12px 22px',
-  borderRadius:12,
-  fontWeight:700,
-  cursor:'pointer',
-  boxShadow:'0 10px 20px rgba(61,31,10,.18)',
-},
- columns:{
-    display:'grid',
-    gridTemplateColumns:'repeat(4,minmax(320px,1fr))',
-    gap:'24px',
-    alignItems:'flex-start',
-    overflowX:'auto',
-    paddingBottom:'20px',
-},
+  sidebarLogo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 34,
+    paddingBottom: 22,
+    borderBottom: '1px solid rgba(255,255,255,.08)',
+  },
+  sidebarName: {
+    color: '#FFF8F0',
+    fontWeight: 700,
+    fontSize: 20,
+    letterSpacing: '.3px',
+  },
+  sidebarRole: {
+    color: '#D8B48A',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  nav: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  navBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#D8B48A',
+    padding: '13px 16px',
+    borderRadius: 12,
+    fontSize: 15,
+    cursor: 'pointer',
+    textAlign: 'left',
+    fontWeight: 600,
+    transition: 'all .25s ease',
+  },
+  navBtnActive: {
+    background: '#5B3316',
+    color: '#FFF',
+    boxShadow: '0 6px 16px rgba(0,0,0,.18)',
+  },
+  logoutBtn: {
+    background: '#5B3316',
+    color: '#fff',
+    border: 'none',
+    padding: '12px',
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: '.25s'
+  },
+  pageHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 30,
+    gap: 12,
+  },
+  pageTitle: {
+    fontSize: 30,
+    fontWeight: 800,
+    color: '#2A1408',
+  },
+  pageSub: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#7A7A7A',
+  },
+  refreshBtn: {
+    background: '#3D1F0A',
+    color: '#fff',
+    border: 'none',
+    padding: '12px 22px',
+    borderRadius: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 10px 20px rgba(61,31,10,.18)',
+  },
   column:        { background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' },
- colHeader:{
-    padding:'18px 20px',
-    fontWeight:700,
-    fontSize:16,
-    display:'flex',
-    justifyContent:'space-between',
-    alignItems:'center',
-    borderBottom:'1px solid rgba(0,0,0,.05)',
-},
- colCount:{
-    background:'rgba(255,255,255,.8)',
-    borderRadius:'30px',
-    padding:'6px 14px',
-    fontWeight:700,
-    fontSize:13,
-},
+  colHeader: {
+    padding: '18px 20px',
+    fontWeight: 700,
+    fontSize: 16,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottom: '1px solid rgba(0,0,0,.05)',
+  },
+  colCount: {
+    background: 'rgba(255,255,255,.8)',
+    borderRadius: '30px',
+    padding: '6px 14px',
+    fontWeight: 700,
+    fontSize: 13,
+  },
   colEmpty:      { padding: '20px 14px', fontSize: 13, color: '#9CA3AF', textAlign: 'center' },
- orderCard:{
-    background:'#FFFFFF',
-    borderRadius:'18px',
-    padding:'18px',
-    margin:'14px',
-    boxShadow:'0 10px 25px rgba(0,0,0,.08)',
-    border:'1px solid #EFEFEF',
-    transition:'all .25s ease',
-},
+  orderCard: {
+    background: '#FFFFFF',
+    borderRadius: '18px',
+    padding: '18px',
+    margin: '14px',
+    boxShadow: '0 10px 25px rgba(0,0,0,.08)',
+    border: '1px solid #EFEFEF',
+    transition: 'all .25s ease',
+  },
   orderHeader:   { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
-tableNum:{
-    fontSize:20,
-    fontWeight:800,
-    color:'#3D1F0A',
-},
-orderTime:{
-    fontSize:12,
-    color:'#9CA3AF',
-    fontWeight:600,
-},
-orderId:{
-    color:'#9CA3AF',
-    fontSize:12,
-    margin:'8px 0 14px',
-},
+  tableNum: {
+    fontSize: 20,
+    fontWeight: 800,
+    color: '#3D1F0A',
+  },
+  orderTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: 600,
+  },
+  orderId: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    margin: '8px 0 14px',
+  },
   itemsList:     { marginBottom: 8 },
-itemRow:{
-    display:'flex',
-    alignItems:'center',
-    gap:10,
-    padding:'8px 0',
-    borderBottom:'1px solid #F5F5F5',
-},
- itemQty:{
-    width:32,
-    height:32,
-    borderRadius:'50%',
-    background:'#F5ECD7',
-    color:'#3D1F0A',
-    display:'flex',
-    justifyContent:'center',
-    alignItems:'center',
-    fontWeight:700,
-},
- itemName:{
-    flex:1,
-    fontSize:14,
-    color:'#374151',
-    fontWeight:500,
-},
-orderTotal:{
-    marginTop:'16px',
-    marginBottom:'16px',
-    fontSize:22,
-    fontWeight:800,
-    color:'#3D1F0A',
-},
- actionBtn:{
-    width:'100%',
-    padding:'14px',
-    border:'none',
-    borderRadius:'12px',
-    background:'linear-gradient(135deg,#3D1F0A,#6B3A1F)',
-    color:'#fff',
-    fontSize:14,
-    fontWeight:700,
-    cursor:'pointer',
-    transition:'all .25s ease',
-    boxShadow:'0 8px 20px rgba(61,31,10,.25)',
-},
+  itemRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 0',
+    borderBottom: '1px solid #F5F5F5',
+  },
+  itemQty: {
+    width: 32,
+    height: 32,
+    borderRadius: '50%',
+    background: '#F5ECD7',
+    color: '#3D1F0A',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontWeight: 700,
+  },
+  itemName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: 500,
+  },
+  orderTotal: {
+    marginTop: '16px',
+    marginBottom: '16px',
+    fontSize: 22,
+    fontWeight: 800,
+    color: '#3D1F0A',
+  },
+  actionBtn: {
+    width: '100%',
+    padding: '14px',
+    border: 'none',
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg,#3D1F0A,#6B3A1F)',
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all .25s ease',
+    boxShadow: '0 8px 20px rgba(61,31,10,.25)',
+  },
   loading:       { textAlign: 'center', padding: 60, color: '#6B7280', fontSize: 15 },
   empty:         { textAlign: 'center', padding: 80, color: '#6B7280', fontSize: 15 },
-  // Menu styles
   menuSection:   { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
-  menuCatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  menuCatHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 },
   menuCatName:   { fontSize: 16, fontWeight: 700, color: '#3D1F0A' },
   addItemBtn:    { background: '#3D1F0A', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 8, fontSize: 13, cursor: 'pointer' },
- menuGrid:{
-  display:'grid',
-  gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',
-  gap:'22px',
-},
- menuCard:{
-  background:'#FFFFFF',
-  border:'1px solid #ECECEC',
-  borderRadius:'18px',
-  overflow:'hidden',
-  boxShadow:'0 8px 22px rgba(0,0,0,.06)',
-  transition:'all .25s ease',
-  display:'flex',
-  flexDirection:'column',
-},
-  menuEmoji:     { fontSize: 28, marginBottom: 6 },
-menuItemName:{
-    fontSize:18,
-    fontWeight:700,
-    color:'#2A1408',
-    marginTop:14,
-    marginBottom:6,
-    padding:'0 16px'
-},
-menuItemDesc:{
-    fontSize:13,
-    color:'#6B7280',
-    lineHeight:1.6,
-    minHeight:42,
-    padding:'0 16px'
-},
- menuItemPrice:{
-    fontSize:22,
-    fontWeight:800,
-    color:'#3D1F0A',
-    padding:'12px 16px',
-},
-menuItemActions:{
-    display:'flex',
-    gap:10,
-    padding:'0 16px 18px',
-},
-editBtn:{
-    flex:1,
-    background:'#FFFFFF',
-    border:'1px solid #DDD',
-    borderRadius:10,
-    padding:'10px',
-    cursor:'pointer',
-    fontWeight:600,
-},
-toggleBtn:{
-    flex:2,
-    border:'none',
-    borderRadius:10,
-    padding:'10px',
-    cursor:'pointer',
-    fontWeight:700,
-},
-deleteBtn:{
-    width:46,
-    background:'#FFE7E7',
-    border:'none',
-    borderRadius:10,
-    cursor:'pointer',
-    fontSize:18,
-},
-  // Modal
-  modalOverlay:  { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modalCard:     { background: '#fff', borderRadius: 16, padding: 28, width: 420, maxHeight: '90vh', overflow: 'auto' },
+  menuCard: {
+    background: '#FFFFFF',
+    border: '1px solid #ECECEC',
+    borderRadius: '18px',
+    overflow: 'hidden',
+    boxShadow: '0 8px 22px rgba(0,0,0,.06)',
+    transition: 'all .25s ease',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  menuItemName: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#2A1408',
+    marginTop: 14,
+    marginBottom: 6,
+    padding: '0 16px'
+  },
+  menuItemDesc: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 1.6,
+    minHeight: 42,
+    padding: '0 16px'
+  },
+  menuItemPrice: {
+    fontSize: 22,
+    fontWeight: 800,
+    color: '#3D1F0A',
+    padding: '12px 16px',
+  },
+  menuItemActions: {
+    display: 'flex',
+    gap: 10,
+    padding: '0 16px 18px',
+    flexWrap: 'wrap',
+  },
+  editBtn: {
+    flex: 1,
+    background: '#FFFFFF',
+    border: '1px solid #DDD',
+    borderRadius: 10,
+    padding: '10px',
+    cursor: 'pointer',
+    fontWeight: 600,
+    minWidth: 44,
+  },
+  toggleBtn: {
+    flex: 2,
+    border: 'none',
+    borderRadius: 10,
+    padding: '10px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    minWidth: 90,
+  },
+  deleteBtn: {
+    width: 46,
+    background: '#FFE7E7',
+    border: 'none',
+    borderRadius: 10,
+    cursor: 'pointer',
+    fontSize: 18,
+  },
+  modalOverlay:  { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
+  modalCard:     { background: '#fff', borderRadius: 16, padding: 28, width: 420, maxHeight: '90vh', overflow: 'auto', boxSizing: 'border-box' },
   modalTitle:    { fontSize: 18, fontWeight: 700, color: '#3D1F0A', marginBottom: 20 },
   label:         { display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4 },
   emojiBtn:      { width: 36, height: 36, border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 18 },
-  // Revenue
-  statsGrid:     { display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 },
   statCard:      { background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
   statLabel:     { fontSize: 12, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
   statValue:     { fontSize: 24, fontWeight: 700, color: '#3D1F0A' },
-  table:         { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
-  th:            { padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'left', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' },
+  table:         { width: '100%', minWidth: 640, borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
+  th:            { padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#6B7280', textAlign: 'left', background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', whiteSpace: 'nowrap' },
   tr:            { borderBottom: '1px solid #F3F4F6' },
-  td:            { padding: '12px 16px', fontSize: 13, color: '#374151' },
+  td:            { padding: '12px 16px', fontSize: 13, color: '#374151', whiteSpace: 'nowrap' },
   badge:         { padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600 },
-  // Login
-  loginWrap:     { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6' },
-  loginCard:     { background: '#fff', borderRadius: 16, padding: 36, width: 340, textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.1)' },
+  loginWrap:     { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6', padding: 16 },
+  loginCard:     { background: '#fff', borderRadius: 16, padding: 36, width: '100%', maxWidth: 340, textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.1)', boxSizing: 'border-box' },
   loginTitle:    { fontSize: 22, fontWeight: 700, color: '#3D1F0A', marginBottom: 4 },
   loginSub:      { fontSize: 14, color: '#6B7280', marginBottom: 24 },
   input:         { width: '100%', padding: '11px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, marginBottom: 12, outline: 'none', boxSizing: 'border-box' },
